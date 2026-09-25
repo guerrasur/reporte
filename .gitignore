@@ -1,0 +1,27 @@
+# Credenciales y configuracion local
+.env
+.env.*
+!.env.example
+
+# Dependencias
+node_modules/
+notas-app/node_modules/
+
+# Perfiles/sesiones de navegador: contienen cookies y datos de cuenta
+chrome-profile/
+perfil-bot/
+perfil-bistro/
+perfil-google/
+
+# Descargas y datos generados
+descargas/
+notas-app/notas/*.json
+notas-app/notas/*.enviado.json
+
+# Logs / debug local
+*.log
+debug-*.txt
+
+# Windows/macOS
+Thumbs.db
+.DS_Store

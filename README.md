@@ -1,93 +1,60 @@
 # Reporte diario Bistrosoft -> Google Form
 
-## Instalacion (una sola vez)
+Automatiza la descarga de los reportes diarios de Bistrosoft y deja preparado el Google Form. El envio y los archivos adjuntos siguen siendo manuales.
+
+## Cambio importante: login de Google
+
+Google ya no se autentica dentro del navegador controlado por Playwright. El proyecto usa dos perfiles separados:
+
+- `perfil-bistro/`: navegador automatizado para Bistrosoft.
+- `perfil-google/`: sesion de Google. Si vence, el script cierra Playwright y abre Chrome normal para que inicies sesion de forma manual y segura.
+
+Esto evita el flujo que terminaba en el mensaje de Google indicando que el navegador o la app no eran seguros.
+
+## Instalacion
 
 ```powershell
-mkdir C:\reporte
 cd C:\reporte
-# copiar aca reporte.js, reporte.bat, .env.ejemplo, README.md
-npm init -y
-npm i playwright dotenv
-npx playwright install chromium
+npm install
 ```
 
-Renombrar `.env.ejemplo` a `.env` y poner ahi el usuario y contrasena de Bistrosoft.
+Copia `.env.example` como `.env` y completa las credenciales de Bistrosoft:
 
-### Configurar el alias `reporte`
-
-En PowerShell (como administrador):
-
-```powershell
-$path = [Environment]::GetEnvironmentVariable("Path", "User")
-[Environment]::SetEnvironmentVariable("Path", "$path;C:\reporte", "User")
+```env
+BISTRO_USER=tu_usuario
+BISTRO_PASS=tu_contrasena
 ```
 
-Cerrar y volver a abrir PowerShell. A partir de ahi, escribiendo `reporte` desde
-cualquier carpeta arranca el script.
+`reporte.bat` ejecuta el reporte.
 
-## Primera corrida
+## Primera autenticacion de Google
 
-La primera vez el navegador va a pedir login de Google (para el form). Logueate
-a mano en esa ventana; queda guardado en `chrome-profile/` y no vuelve a pedirlo.
+No es obligatorio prepararla antes: si el script detecta que falta sesion, abre Chrome normal automaticamente.
 
-## Uso diario
+Tambien podes hacerlo manualmente con:
 
-```
-reporte
+```text
+google-login.bat
 ```
 
-Pregunta tres cosas y despues hace todo solo:
+Inicia sesion, espera a que cargue el formulario y cierra ese Chrome. La proxima corrida reutiliza esa sesion.
 
-```
-Sobrantes:
-Desperdicios:
-Aclaraciones:
-```
+## Flujo diario
 
-Las tres son obligatorias. Si dejas una vacia, vuelve a preguntar.
+1. Pide `Sobrantes`, `Desperdicios` y `Aclaraciones`.
+2. Abre Bistrosoft con un perfil dedicado.
+3. Si hace falta, inicia sesion en Bistrosoft usando `.env`.
+4. Descarga `Ranking de V. Diario` y `Caja`.
+5. Cierra el navegador de Bistrosoft.
+6. Abre el Google Form con el perfil de Google.
+7. Si Google requiere autenticacion, cierra Playwright y abre Chrome normal para iniciar sesion; al volver, retoma automaticamente.
+8. Completa fecha, sobrantes, desperdicio y observaciones.
+9. Deja la ventana abierta para adjuntar los dos archivos y enviar manualmente.
 
-## Que hace
+## Archivos que NO se versionan
 
-1. Verifica sesion de Bistrosoft; si expiro, se loguea con el `.env`
-2. Lee "TOTAL VENDIDO" y "EFECTIVO" del dashboard (solapa Hoy)
-3. Va a Ventas y reportes -> Ranking de V. Diario -> Descargar detalle
-4. Guarda el Excel en `descargas/bistrosoft_AAAA-MM-DD.xlsx`
-5. Abre el Google Form y lo **recarga** (por el bug de envios fallidos)
-6. Completa fecha, adjunta el Excel, y llena los 5 campos
-7. Envia y clickea "Enviar otra respuesta"
+`.env`, perfiles de Chrome, cookies, caches, `node_modules`, descargas y notas diarias estan excluidos por `.gitignore`. No subas el RAR completo al repositorio: contiene datos de sesion y credenciales locales.
 
-Cada paso se loguea en consola con hora, para saber donde fallo si algo sale mal.
+## Si Google vuelve a cerrar la sesion
 
-## Si Bistrosoft cambia la UI
-
-El script usa **selectores por texto visible**, no por clases CSS. Los puntos a
-revisar en `reporte.js`:
-
-| Que cambio | Donde tocar |
-|---|---|
-| Nombre del reporte | linea con `'Ranking de V. Diario'` |
-| Nombre del boton de descarga | regex `/descargar\s+detalle/i` |
-| Etiquetas de los montos | regex `TOTAL\s+VENDIDO` y `EFECTIVO` en `leerMontos()` |
-| Solapa de fecha | `getByText('Hoy', { exact: true })` |
-| Campos del login | selectores en `loginSiHaceFalta()` |
-
-Para debuggear: el navegador corre en modo visible (`headless: false`), asi que
-podes ver exactamente donde se traba. Si falla, la ventana queda abierta 60
-segundos.
-
-## Si el Form cambia
-
-Los campos se buscan por el texto de la pregunta. Si renombras una pregunta,
-actualiza el string correspondiente en `completarForm()`:
-
-- `'Facturación total'`
-- `'Facturación en efectivo'`
-- `'Sobrantes'`
-- `'Desperdicio'`
-- `'Observaciones'`
-
-## Notas
-
-- Los montos se leen del dashboard, no del Excel (mas simple y confiable)
-- Formato de monto: `$ 1.791.425,00` se envia como `1791425.00`
-- Si algun monto no se lee, el script avisa en consola pero sigue con el campo vacio
+No intentes iniciar sesion desde una ventana de Playwright. Deja que `reporte.js` abra Chrome normal o ejecuta `google-login.bat`, inicia sesion, cierra ese Chrome y vuelve a correr `reporte.bat`.

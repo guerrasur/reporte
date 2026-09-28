@@ -25,3 +25,6 @@ debug-*.txt
 # Windows/macOS
 Thumbs.db
 .DS_Store
+
+# Marca local de sesion Google preparada
+.google-session-ready

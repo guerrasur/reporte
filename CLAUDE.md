@@ -77,6 +77,10 @@ Si se modifica `package.json` o `package-lock.json`, el updater ejecuta `npm ins
 
 El primer arranque tambien instala dependencias automaticamente si falta Playwright.
 
+## Credenciales de Bistrosoft
+
+`.env` es opcional. Si faltan `BISTRO_USER` o `BISTRO_PASS`, o siguen con los valores de `.env.example`, el script espera a que la persona inicie sesion manualmente en el Chrome de Bistrosoft y confirme con Enter. `perfil-bistro/` conserva esa sesion. Con credenciales configuradas, el login automatico sigue disponible. Nunca versionar `.env` ni las sesiones.
+
 ## Publicacion de cambios
 
 Antes de considerar terminada una modificacion:

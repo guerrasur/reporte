@@ -18,12 +18,14 @@ cd C:\reporte
 npm install
 ```
 
-Copia `.env.example` como `.env` y completa las credenciales de Bistrosoft:
+Copia `.env.example` como `.env` y completa las credenciales de Bistrosoft si queres que el inicio de sesion sea automatico:
 
 ```env
 BISTRO_USER=tu_usuario
 BISTRO_PASS=tu_contrasena
 ```
+
+El archivo `.env` es opcional. Si falta, esta incompleto o todavia contiene los valores de ejemplo, inicia sesion manualmente en la ventana de Bistrosoft la primera vez y presiona Enter en la consola cuando veas el panel. El perfil `perfil-bistro/` conserva la sesion para las siguientes ejecuciones. Si la sesion vence, repetis el ingreso manual.
 
 `reporte.bat` ejecuta el reporte.
 
@@ -43,7 +45,7 @@ Inicia sesion, espera a que cargue el formulario y cierra ese Chrome. La proxima
 
 1. Pide `Sobrantes`, `Desperdicios` y `Aclaraciones`.
 2. Abre Bistrosoft con un perfil dedicado.
-3. Si hace falta, inicia sesion en Bistrosoft usando `.env`.
+3. Si hace falta, inicia sesion en Bistrosoft con `.env` o manualmente en Chrome.
 4. Descarga `Ranking de V. Diario` y `Caja`.
 5. Cierra el navegador de Bistrosoft.
 6. Abre el Google Form con el perfil de Google.

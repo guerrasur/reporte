@@ -3,7 +3,7 @@ const readline = require('readline');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true });
 
 const BISTRO_LOGIN = 'https://webaccess.bistrosoft.com/login';
 const BISTRO_DASH = 'https://webaccess.bistrosoft.com/dashboard/indexV2';
@@ -177,12 +177,23 @@ async function bistroLogin(page) {
   await sleep(3000);
   await closeModals(page);
 
-  const needsLogin = page.url().includes('/login') || await page.locator('input[type="password"]').count() > 0;
-  if (!needsLogin) return;
+  const needsLogin = async () => page.url().includes('/login') ||
+    await page.locator('input[type="password"]').count() > 0;
+  if (!await needsLogin()) return;
 
   const user = process.env.BISTRO_USER;
   const pass = process.env.BISTRO_PASS;
-  if (!user || !pass) throw new Error('Faltan BISTRO_USER/BISTRO_PASS en .env');
+  if (!user || !pass || user === 'tu_usuario' || pass === 'tu_contrasena') {
+    log('Bistrosoft necesita iniciar sesion. Hacelo en la ventana de Chrome que se abrio.');
+    await waitEnter('Cuando veas el panel de Bistrosoft, presiona Enter para continuar... ');
+    await page.goto(BISTRO_DASH, { waitUntil: 'domcontentloaded' });
+    await sleep(2000);
+    if (await needsLogin()) {
+      throw new Error('Bistrosoft sigue mostrando el login. Inicia sesion en Chrome y vuelve a ejecutar Reporte.');
+    }
+    await closeModals(page);
+    return;
+  }
 
   if (!page.url().includes('/login')) await page.goto(BISTRO_LOGIN, { waitUntil: 'domcontentloaded' });
   const userInput = page.locator('input[type="email"], input[name="username"], input[name="email"], input[type="text"]').first();
@@ -195,7 +206,11 @@ async function bistroLogin(page) {
   if (await submit.count()) await submit.click();
   else await passInput.press('Enter');
 
-  await page.waitForFunction(() => !location.href.includes('/login'), { timeout: 40000 });
+  try {
+    await page.waitForFunction(() => !location.href.includes('/login'), { timeout: 40000 });
+  } catch {
+    throw new Error('Bistrosoft no acepto el inicio de sesion. Revisa BISTRO_USER/BISTRO_PASS en .env o inicia sesion manualmente quitando esas variables.');
+  }
   await sleep(3000);
   await closeModals(page);
 }

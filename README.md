@@ -58,3 +58,41 @@ Inicia sesion, espera a que cargue el formulario y cierra ese Chrome. La proxima
 ## Si Google vuelve a cerrar la sesion
 
 No intentes iniciar sesion desde una ventana de Playwright. Deja que `reporte.js` abra Chrome normal o ejecuta `google-login.bat`, inicia sesion, cierra ese Chrome y vuelve a correr `reporte.bat`.
+
+
+## Actualizaciones automaticas
+
+`reporte.bat` comprueba actualizaciones en GitHub antes de iniciar el programa.
+
+El mecanismo funciona asi:
+
+1. `reporte.bat` ejecuta `updater.js`.
+2. `updater.js` compara el archivo local `VERSION` con `VERSION` de la rama `main` de `guerrasur/reporte`.
+3. Si ambas versiones coinciden, Reporte inicia normalmente.
+4. Si la version remota es distinta, descarga el ZIP actual de `main`, reemplaza los archivos del programa y ejecuta `npm install` para incorporar dependencias nuevas.
+5. `reporte.bat` se actualiza de forma segura mediante `reporte.bat.new`: el launcher nuevo se aplica en el siguiente arranque para no reemplazar el BAT mientras esta ejecutandose.
+6. Si GitHub no responde o la actualizacion falla, Reporte conserva la instalacion actual e intenta iniciar normalmente.
+
+El actualizador no debe borrar ni reemplazar datos locales. Se preservan, entre otros:
+
+- `.env`
+- `node_modules/`
+- `perfil-google/`
+- `perfil-bistro/`
+- `descargas/`
+- `notas-app/`
+- archivos y sesiones locales excluidos por `.gitignore`
+
+### Regla obligatoria al publicar cambios
+
+Todo cambio que deba llegar automaticamente a las PCs instaladas debe incrementar `VERSION` en el mismo conjunto de cambios.
+
+Ejemplo:
+
+```text
+1.1.1 -> 1.1.2
+```
+
+Si se modifica codigo en `main` pero no se incrementa `VERSION`, las instalaciones que ya tengan esa misma version consideraran que estan actualizadas y no descargaran los archivos nuevos.
+
+La primera copia antigua que no tenga `updater.js` requiere una actualizacion manual una sola vez. Desde una version que ya incluya el updater, las siguientes actualizaciones se realizan al abrir `reporte.bat`.

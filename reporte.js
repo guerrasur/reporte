@@ -233,12 +233,26 @@ async function selectCommerce(page) {
   await sleep(1500);
 }
 
+async function closeDropdownOverlay(page) {
+  const overlay = page.locator('.dropdown-click-listener:visible').first();
+  if (!await overlay.count()) return;
+
+  await page.keyboard.press('Escape');
+  if (await overlay.count()) {
+    await overlay.click({ timeout: 3000 });
+  }
+  if (await overlay.count()) {
+    throw new Error('El menu de Bistrosoft quedo abierto e impide elegir el reporte. Cerra el menu y volve a ejecutar Reporte.');
+  }
+}
+
 async function downloadReport(page, section, suffix) {
   log(`Descargando ${section}...`);
   await page.goto(BISTRO_REPORT, { waitUntil: 'domcontentloaded' });
   await sleep(3500);
   await closeModals(page);
   await selectCommerce(page);
+  await closeDropdownOverlay(page);
 
   const todayTab = page.getByText('Hoy', { exact: true }).first();
   if (await todayTab.count()) {
@@ -246,6 +260,7 @@ async function downloadReport(page, section, suffix) {
     await sleep(2000);
   }
 
+  await closeDropdownOverlay(page);
   await page.getByText(section, { exact: false }).first().click();
   await sleep(4000);
   const button = page.getByText(/descargar\s+detalle/i, { exact: false }).first();

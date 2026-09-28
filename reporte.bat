@@ -22,8 +22,44 @@ if errorlevel 1 (
   exit /b 1
 )
 
+where npm >nul 2>nul
+if errorlevel 1 (
+  echo.
+  echo [ERROR] No se encontro npm.
+  echo Reinstala Node.js incluyendo npm.
+  echo.
+  pause
+  exit /b 1
+)
+
+REM Primera instalacion o carpeta copiada/extraida desde GitHub.
+if not exist "%~dp0node_modules\playwright\package.json" (
+  echo Instalando dependencias por primera vez...
+  call npm install --no-audit --no-fund
+  if errorlevel 1 (
+    echo.
+    echo [ERROR] No se pudieron instalar las dependencias.
+    echo.
+    pause
+    exit /b 1
+  )
+)
+
 echo Buscando actualizaciones...
 node updater.js
+
+REM Por si una actualizacion cambio package.json/package-lock.json o faltaban modulos.
+if not exist "%~dp0node_modules\playwright\package.json" (
+  echo Instalando dependencias...
+  call npm install --no-audit --no-fund
+  if errorlevel 1 (
+    echo.
+    echo [ERROR] No se pudieron instalar las dependencias.
+    echo.
+    pause
+    exit /b 1
+  )
+)
 
 REM Releer VERSION por si acaba de actualizarse.
 set "VER="

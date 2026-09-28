@@ -14,6 +14,7 @@ const COMERCIO = 'LIMA ENSALADAS - SUIPACHA';
 const ROOT = __dirname;
 const BISTRO_PROFILE = path.join(ROOT, 'perfil-bistro');
 const GOOGLE_PROFILE = path.join(ROOT, 'perfil-google');
+const GOOGLE_READY = path.join(ROOT, '.google-session-ready');
 const DOWNLOAD_DIR = path.join(ROOT, 'descargas');
 const NOTAS_DIR = path.join(ROOT, 'notas-app', 'notas');
 
@@ -70,7 +71,7 @@ async function launchAutomated(profileDir, label) {
     acceptDownloads: true,
     viewport: null,
     args: ['--start-maximized', '--no-default-browser-check', '--no-first-run'],
-    ignoreDefaultArgs: ['--enable-automation'],
+    ignoreDefaultArgs: ['--enable-automation', '--no-sandbox'],
   });
 }
 
@@ -101,22 +102,39 @@ async function waitEnter(text) {
   await new Promise(resolve => rl.question(text, () => { rl.close(); resolve(); }));
 }
 
+async function prepareGoogleLogin() {
+  console.log('');
+  log('Abriendo Chrome NORMAL para preparar la sesion de Google.');
+  log('Inicia sesion, espera a que aparezca el formulario y CERRA esa ventana.');
+  openNormalGoogleChrome();
+  await waitEnter('Cuando hayas cerrado ese Chrome, presiona Enter para continuar... ');
+  fs.writeFileSync(GOOGLE_READY, new Date().toISOString(), 'utf8');
+}
+
 async function googleContextWithSession() {
+  // En el primer uso NO abrimos Google dentro de Playwright: eso puede hacer
+  // que Google rechace el login por detectar flags de automatizacion.
+  if (!fs.existsSync(GOOGLE_READY)) {
+    await prepareGoogleLogin();
+  }
+
   let context = await launchAutomated(GOOGLE_PROFILE, 'Google Form');
   let page = context.pages()[0] || await context.newPage();
   await page.goto(FORM_URL, { waitUntil: 'domcontentloaded' });
-  await sleep(3000);
+  await sleep(3500);
 
   if (await page.locator('div[role="listitem"]').first().isVisible().catch(() => false)) {
     return { context, page };
   }
 
+  // La sesion vencio o no quedo bien guardada. Cerramos el navegador
+  // automatizado ANTES de pedir el login para que el usuario nunca intente
+  // autenticarse dentro de Playwright.
   await context.close().catch(() => {});
-  console.log('');
-  log('Google necesita autenticacion. Abriendo Chrome NORMAL, sin Playwright.');
-  log('Inicia sesion, espera a que aparezca el formulario y CERRA esa ventana.');
-  openNormalGoogleChrome();
-  await waitEnter('Cuando hayas cerrado ese Chrome, presiona Enter para continuar... ');
+  try { fs.unlinkSync(GOOGLE_READY); } catch {}
+
+  log('La sesion de Google no esta disponible. Se abrira Chrome normal.');
+  await prepareGoogleLogin();
 
   context = await launchAutomated(GOOGLE_PROFILE, 'Google Form');
   page = context.pages()[0] || await context.newPage();
@@ -126,7 +144,8 @@ async function googleContextWithSession() {
   const ok = await page.locator('div[role="listitem"]').first().isVisible().catch(() => false);
   if (!ok) {
     await context.close().catch(() => {});
-    throw new Error('Google sigue sin mostrar el formulario. Ejecuta google-login.bat y completa el login en Chrome normal.');
+    try { fs.unlinkSync(GOOGLE_READY); } catch {}
+    throw new Error('Google sigue sin mostrar el formulario. Cerra Reporte, ejecuta google-login.bat, inicia sesion en Chrome normal y volve a probar.');
   }
   return { context, page };
 }

@@ -40,6 +40,7 @@ google-login.bat
 ```
 
 Inicia sesion, espera a que cargue el formulario y cierra ese Chrome. La proxima corrida reutiliza esa sesion.
+Si Chrome queda activo en segundo plano despues de cerrar la ventana, `reporte.bat` cierra solamente los procesos que usan `perfil-google/` antes de continuar con el formulario.
 
 ## Flujo diario
 

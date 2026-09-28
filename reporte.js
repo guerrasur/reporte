@@ -2,7 +2,7 @@ const { chromium } = require('playwright');
 const readline = require('readline');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true });
 
 const BISTRO_LOGIN = 'https://webaccess.bistrosoft.com/login';
@@ -97,6 +97,43 @@ function openNormalGoogleChrome() {
   child.unref();
 }
 
+function googleProfileChromePids() {
+  if (process.platform !== 'win32') return [];
+  const profile = GOOGLE_PROFILE.replace(/'/g, "''");
+  const script = `$profile = '${profile}'; $needle = '--user-data-dir=' + $profile; ` +
+    `Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | ` +
+    `Where-Object { $_.CommandLine -and $_.CommandLine.Replace('"', '') -match ([regex]::Escape($needle) + '(?=\\s|$)') } | ` +
+    `Select-Object -ExpandProperty ProcessId`;
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', script], {
+    encoding: 'utf8', windowsHide: true, timeout: 15000,
+  });
+  if (result.status !== 0) {
+    throw new Error('No pude comprobar si Chrome libero el perfil de Google. Cerra por completo la ventana de ese perfil y volve a intentar.');
+  }
+  return result.stdout.split(/\s+/).filter(Boolean).map(Number).filter(Number.isInteger);
+}
+
+async function releaseGoogleProfile() {
+  if (process.platform !== 'win32') return;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (!googleProfileChromePids().length) return;
+    await sleep(1000);
+  }
+
+  const pids = googleProfileChromePids();
+  log('Chrome dejo procesos del perfil de Google en segundo plano. Cerrandolos para continuar...');
+  for (const pid of pids) {
+    spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
+      encoding: 'utf8', windowsHide: true, timeout: 10000,
+    });
+  }
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (!googleProfileChromePids().length) return;
+    await sleep(1000);
+  }
+  throw new Error('Chrome sigue usando el perfil de Google. Cerra esa ventana y sus procesos antes de volver a intentar.');
+}
+
 async function waitEnter(text) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   await new Promise(resolve => rl.question(text, () => { rl.close(); resolve(); }));
@@ -108,6 +145,7 @@ async function prepareGoogleLogin() {
   log('Inicia sesion, espera a que aparezca el formulario y CERRA esa ventana.');
   openNormalGoogleChrome();
   await waitEnter('Cuando hayas cerrado ese Chrome, presiona Enter para continuar... ');
+  await releaseGoogleProfile();
   fs.writeFileSync(GOOGLE_READY, new Date().toISOString(), 'utf8');
 }
 
@@ -118,6 +156,7 @@ async function googleContextWithSession() {
     await prepareGoogleLogin();
   }
 
+  await releaseGoogleProfile();
   let context = await launchAutomated(GOOGLE_PROFILE, 'Google Form');
   let page = context.pages()[0] || await context.newPage();
   await page.goto(FORM_URL, { waitUntil: 'domcontentloaded' });

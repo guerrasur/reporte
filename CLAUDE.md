@@ -69,6 +69,8 @@ El login de Google debe realizarse solamente en Chrome normal, nunca dentro de u
 
 Si la sesion expira, cerrar el contexto automatizado antes de pedir al usuario que vuelva a iniciar sesion.
 
+Chrome normal puede quedar en segundo plano con `perfil-google/` abierto aunque se haya cerrado su ventana. Antes de lanzar Playwright con ese perfil, `reporte.js` espera su salida y, en Windows, cierra solo los procesos `chrome.exe` cuyo argumento `--user-data-dir` apunta a `perfil-google/`. No cerrar las demas sesiones de Chrome.
+
 No reintroducir un flujo donde el usuario intente autenticarse dentro de Playwright.
 
 ## Dependencias

@@ -94,6 +94,11 @@ async function applyUpdate() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'reporte-update-'));
   const zip = path.join(tmp, 'main.zip');
   const out = path.join(tmp, 'out');
+  const packageFiles = ['package.json', 'package-lock.json'];
+  const previousPackages = packageFiles.map(name => {
+    try { return fs.readFileSync(path.join(BASE, name), 'utf8'); }
+    catch { return null; }
+  });
 
   try {
     const zipData = await get(`https://api.github.com/repos/${REPO}/zipball/${BRANCH}`);
@@ -113,14 +118,20 @@ async function applyUpdate() {
 
     copyTree(path.join(out, roots[0].name));
 
-    console.log('Actualizando dependencias...');
-    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const npm = spawnSync(npmCmd, ['install', '--no-audit', '--no-fund'], {
-      cwd: BASE,
-      stdio: 'inherit'
+    const dependenciesChanged = packageFiles.some((name, index) => {
+      try { return fs.readFileSync(path.join(BASE, name), 'utf8') !== previousPackages[index]; }
+      catch { return true; }
     });
-    if (npm.status !== 0) {
-      console.log('Aviso: npm install fallo. El programa intentara iniciar igualmente.');
+    if (dependenciesChanged || !fs.existsSync(path.join(BASE, 'node_modules', 'playwright', 'package.json'))) {
+      console.log('Actualizando dependencias...');
+      const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+      const npm = spawnSync(npmCmd, ['install', '--no-audit', '--no-fund'], {
+        cwd: BASE,
+        stdio: 'inherit'
+      });
+      if (npm.status !== 0) {
+        console.log('Aviso: npm install fallo. El programa intentara iniciar igualmente.');
+      }
     }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

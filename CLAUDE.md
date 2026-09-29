@@ -40,7 +40,7 @@ Al iniciar:
 4. El updater consulta `VERSION` en GitHub.
 5. Si hay una version distinta, descarga el ZIP de `main`.
 6. Copia los archivos del programa sobre la instalacion local.
-7. Ejecuta `npm install --no-audit --no-fund`.
+7. Ejecuta `npm install --no-audit --no-fund` solo si cambiaron `package.json` o `package-lock.json`, o si falta Playwright.
 8. Si `reporte.bat` cambio, lo guarda como `reporte.bat.new`; el BAT lo reemplaza en el siguiente arranque.
 9. Si la consulta o la actualizacion falla, se informa el error y se intenta iniciar la version instalada.
 

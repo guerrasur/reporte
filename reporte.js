@@ -486,11 +486,32 @@ async function fillForm(page, data, ventaPath, cajaPath) {
   let google = null;
 
   try {
-    bistro = await launchAutomated(BISTRO_PROFILE, 'Bistrosoft');
-    const bistroPage = bistro.pages()[0] || await bistro.newPage();
-    await bistroLogin(bistroPage);
-    const ventaPath = await downloadReport(bistroPage, 'Ranking de V. Diario', 'venta');
-    const cajaPath = await downloadReport(bistroPage, 'Caja', 'caja');
+    let ventaPath;
+    let cajaPath;
+    let closingBistro = false;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        bistro = await launchAutomated(BISTRO_PROFILE, 'Bistrosoft');
+        closingBistro = false;
+        bistro.on('close', () => {
+          if (!closingBistro) log('Chrome de Bistrosoft se cerro inesperadamente.');
+        });
+        const bistroPage = bistro.pages()[0] || await bistro.newPage();
+        bistroPage.on('crash', () => log('La pestana de Bistrosoft fallo (crash).'));
+        await bistroLogin(bistroPage);
+        if (!ventaPath) ventaPath = await downloadReport(bistroPage, 'Ranking de V. Diario', 'venta');
+        if (!cajaPath) cajaPath = await downloadReport(bistroPage, 'Caja', 'caja');
+        break;
+      } catch (err) {
+        const closed = /target page, context or browser has been closed|browser has been closed|page has been closed/i.test(err.message);
+        if (!closed || attempt === 2) throw err;
+        log('Chrome de Bistrosoft se cerro durante la descarga. Reabriendo y reintentando una vez...');
+        closingBistro = true;
+        if (bistro) await bistro.close().catch(() => {});
+        bistro = null;
+      }
+    }
+    closingBistro = true;
     await bistro.close();
     bistro = null;
 

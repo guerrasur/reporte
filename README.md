@@ -51,6 +51,7 @@ Si Chrome queda activo en segundo plano despues de cerrar la ventana, `reporte.b
 3. Si hace falta, pulsa Iniciar Sesion con los datos precargados por Chrome; si faltan, completa las credenciales locales.
 4. Descarga `Ranking de V. Diario` y `Caja`.
    Antes de descargar, elimina los archivos `bistrosoft_venta_...` y `bistrosoft_caja_...` cuya fecha en el nombre sea la de ayer. No borra otros archivos ni los de fechas anteriores.
+   Si Chrome de Bistrosoft se cierra durante una descarga, lo abre de nuevo y reintenta una vez, conservando cualquier archivo ya guardado.
 5. Cierra el navegador de Bistrosoft.
 6. Abre el Google Form con el perfil de Google.
 7. Si Google requiere autenticacion, cierra Playwright y abre Chrome normal para iniciar sesion; al volver, retoma automaticamente.
@@ -75,7 +76,7 @@ El mecanismo funciona asi:
 1. `reporte.bat` ejecuta `updater.js`.
 2. `updater.js` compara el archivo local `VERSION` con `VERSION` de la rama `main` de `guerrasur/reporte`.
 3. Si ambas versiones coinciden, Reporte inicia normalmente.
-4. Si la version remota es distinta, descarga el ZIP actual de `main`, reemplaza los archivos del programa y ejecuta `npm install` para incorporar dependencias nuevas.
+4. Si la version remota es distinta, descarga el ZIP actual de `main` y reemplaza los archivos del programa. Ejecuta `npm install` si cambiaron las dependencias o falta Playwright.
 5. `reporte.bat` se actualiza de forma segura mediante `reporte.bat.new`: el launcher nuevo se aplica en el siguiente arranque para no reemplazar el BAT mientras esta ejecutandose.
 6. Si GitHub no responde o la actualizacion falla, Reporte conserva la instalacion actual e intenta iniciar normalmente.
 

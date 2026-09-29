@@ -362,6 +362,59 @@ function questionBlock(page, text) {
   return page.locator('div[role="listitem"]').filter({ hasText: text }).first();
 }
 
+async function attachFormFile(page, question, filePath) {
+  if (!fs.existsSync(filePath)) throw new Error(`No existe ${filePath}`);
+  const block = questionBlock(page, question);
+  const name = path.basename(filePath);
+  await block.getByRole('button', { name: /agregar archivo/i }).click();
+
+  // Google abre un selector en un iframe. Su input puede aparecer de inmediato
+  // o despues de pulsar "Seleccionar archivos del dispositivo".
+  let fileInput;
+  for (let attempt = 0; attempt < 20 && !fileInput; attempt++) {
+    for (const frame of page.frames().reverse()) {
+      const candidate = frame.locator('input[type="file"]').first();
+      if (await candidate.count().catch(() => 0)) {
+        fileInput = candidate;
+        break;
+      }
+    }
+    if (!fileInput) await sleep(500);
+  }
+
+  if (fileInput) {
+    await fileInput.setInputFiles(filePath);
+  } else {
+    let selected = false;
+    for (const frame of page.frames().reverse()) {
+      const choose = frame.getByRole('button', { name: /seleccionar archivos|elegir archivos|browse|choose files/i }).first();
+      if (!await choose.count().catch(() => 0)) continue;
+      const chooserPromise = page.waitForEvent('filechooser', { timeout: 15000 });
+      await choose.click();
+      await (await chooserPromise).setFiles(filePath);
+      selected = true;
+      break;
+    }
+    if (!selected) throw new Error('No encontre el selector de archivos de Google.');
+  }
+
+  const attached = block.getByText(name, { exact: false });
+  try {
+    await attached.waitFor({ timeout: 20000 });
+  } catch {
+    // Algunas versiones del selector requieren confirmar el archivo elegido.
+    for (const frame of page.frames().reverse()) {
+      const confirm = frame.getByRole('button', { name: /^(subir|upload|seleccionar|insertar)$/i }).first();
+      if (await confirm.isVisible().catch(() => false)) {
+        await confirm.click();
+        break;
+      }
+    }
+    await attached.waitFor({ timeout: 70000 });
+  }
+  log(`Adjuntado al formulario: ${name}`);
+}
+
 async function fillForm(page, data, ventaPath, cajaPath) {
   await page.goto(FORM_URL, { waitUntil: 'domcontentloaded' });
   await sleep(2500);
@@ -394,8 +447,20 @@ async function fillForm(page, data, ventaPath, cajaPath) {
   await fill('Desperdicio', data.desperdicios);
   await fill('Observaciones', data.aclaraciones);
 
+  for (const [question, file] of [
+    ['Venta total - Subir archivo bistrosoft', ventaPath],
+    ['Caja - Subir archivo bistrosoft', cajaPath],
+  ]) {
+    try {
+      await attachFormFile(page, question, file);
+    } catch (err) {
+      log(`No se pudo adjuntar ${path.basename(file)} automaticamente: ${err.message}`);
+      log(`Agregalo manualmente en "${question}" antes de enviar.`);
+    }
+  }
+
   console.log('');
-  log('Formulario preparado. Los adjuntos y el envio siguen siendo manuales.');
+  log('Formulario preparado. Revisa los adjuntos y envia manualmente.');
   log(`Venta total: ${ventaPath}`);
   log(`Caja: ${cajaPath}`);
 }
@@ -434,7 +499,7 @@ async function fillForm(page, data, ventaPath, cajaPath) {
     await fillForm(g.page, { sobrantes, desperdicios, aclaraciones }, ventaPath, cajaPath);
     archivarNotasHoy();
 
-    log('LISTO. Adjunta los dos archivos y envia el formulario.');
+    log('LISTO. Revisa el formulario y envialo manualmente.');
     await new Promise(() => {});
   } catch (err) {
     console.error('\nERROR:', err.message);

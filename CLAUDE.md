@@ -86,6 +86,8 @@ Si Chrome precarga usuario y contrasena en Bistrosoft, pulsar Iniciar Sesion sin
 
 Antes de descargar, eliminar solamente archivos regulares de `descargas/` con nombre `bistrosoft_venta_YYYY-MM-DD.ext` o `bistrosoft_caja_YYYY-MM-DD.ext` cuya fecha sea exactamente ayer segun el reloj local. No borrar otros archivos, fechas anteriores ni carpetas.
 
+El formulario adjunta los dos Excel a las preguntas Venta total y Caja mediante el selector de archivos de Google. Verificar que cada nombre aparezca en su pregunta; si falla, informar el archivo pendiente y dejar el formulario abierto para carga manual. Nunca pulsar Enviar automaticamente.
+
 ## Publicacion de cambios
 
 Antes de considerar terminada una modificacion:

@@ -1,6 +1,6 @@
 # Reporte diario Bistrosoft -> Google Form
 
-Automatiza la descarga de los reportes diarios de Bistrosoft y deja preparado el Google Form. El envio y los archivos adjuntos siguen siendo manuales.
+Automatiza la descarga de los reportes diarios de Bistrosoft, completa el Google Form y adjunta los dos Excel. El envio sigue siendo manual.
 
 ## Cambio importante: login de Google
 
@@ -54,8 +54,8 @@ Si Chrome queda activo en segundo plano despues de cerrar la ventana, `reporte.b
 5. Cierra el navegador de Bistrosoft.
 6. Abre el Google Form con el perfil de Google.
 7. Si Google requiere autenticacion, cierra Playwright y abre Chrome normal para iniciar sesion; al volver, retoma automaticamente.
-8. Completa fecha, sobrantes, desperdicio y observaciones.
-9. Deja la ventana abierta para adjuntar los dos archivos y enviar manualmente.
+8. Completa fecha, sobrantes, desperdicio y observaciones, y adjunta Venta total y Caja en sus respectivas preguntas.
+9. Deja la ventana abierta para revisar los adjuntos y enviar manualmente. Si Google cambia el selector o una carga falla, informa cual archivo hay que agregar a mano sin cerrar el formulario.
 
 ## Archivos que NO se versionan
 

@@ -127,10 +127,11 @@ async function applyUpdate() {
       const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
       const npm = spawnSync(npmCmd, ['install', '--no-audit', '--no-fund'], {
         cwd: BASE,
-        stdio: 'inherit'
+        stdio: 'inherit',
+        shell: process.platform === 'win32'
       });
       if (npm.status !== 0) {
-        console.log('Aviso: npm install fallo. El programa intentara iniciar igualmente.');
+        console.log(`Aviso: npm install fallo (${npm.error?.message || `codigo ${npm.status}`}). El programa intentara iniciar igualmente.`);
       }
     }
   } finally {

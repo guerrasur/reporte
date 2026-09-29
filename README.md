@@ -50,6 +50,7 @@ Si Chrome queda activo en segundo plano despues de cerrar la ventana, `reporte.b
 2. Abre Bistrosoft con un perfil dedicado.
 3. Si hace falta, pulsa Iniciar Sesion con los datos precargados por Chrome; si faltan, completa las credenciales locales.
 4. Descarga `Ranking de V. Diario` y `Caja`.
+   Si Bistrosoft genera el Excel como un archivo en la pagina (Blob/data URL), guarda sus bytes directamente para evitar el gestor de descargas de Chrome. Si entrega un archivo desde el servidor, utiliza la descarga convencional. El log indica que via se uso.
    Antes de descargar, elimina los archivos `bistrosoft_venta_...` y `bistrosoft_caja_...` cuya fecha en el nombre sea la de ayer. No borra otros archivos ni los de fechas anteriores.
    Si Chrome de Bistrosoft se cierra durante una descarga, lo abre de nuevo y reintenta una vez, conservando cualquier archivo ya guardado.
 5. Cierra el navegador de Bistrosoft.
@@ -104,3 +105,9 @@ Ejemplo:
 Si se modifica codigo en `main` pero no se incrementa `VERSION`, las instalaciones que ya tengan esa misma version consideraran que estan actualizadas y no descargaran los archivos nuevos.
 
 La primera copia antigua que no tenga `updater.js` requiere una actualizacion manual una sola vez. Desde una version que ya incluya el updater, las siguientes actualizaciones se realizan al abrir `reporte.bat`.
+
+## Pruebas de exportacion
+
+`node --test tests/blob-capture.test.js` comprueba la captura binaria y la restauracion de los controles de exportacion sin navegador.
+
+`node --test tests/report-download.test.js` comprueba exportaciones con Chromium y una descarga HTTP local. Requiere instalar el navegador de pruebas con `npx playwright install chromium`.

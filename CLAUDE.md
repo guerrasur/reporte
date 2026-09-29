@@ -8,6 +8,7 @@ Repositorio: `guerrasur/reporte`
 Rama de distribucion: `main`
 Launcher de Windows: `reporte.bat`
 Script principal: `reporte.js`
+Captura y guardado de exportaciones: `report-download.js`
 Actualizador: `updater.js`
 Version distribuida: archivo `VERSION`
 
@@ -77,6 +78,7 @@ No reintroducir un flujo donde el usuario intente autenticarse dentro de Playwri
 ## Dependencias
 
 Si se modifica `package.json` o `package-lock.json`, el updater ejecuta `npm install` despues de aplicar la actualizacion.
+En Windows ejecutar `npm.cmd` con `shell: true` (argumentos fijos); sin el interprete puede fallar antes de iniciar npm. Informar `npm.error` si sucede.
 
 El primer arranque tambien instala dependencias automaticamente si falta Playwright.
 
@@ -85,6 +87,7 @@ El primer arranque tambien instala dependencias automaticamente si falta Playwri
 Si Chrome precarga usuario y contrasena en Bistrosoft, pulsar Iniciar Sesion sin leer ni reemplazar esos campos. Si falta algun campo, `.env` es opcional y tiene prioridad si contiene `BISTRO_USER` y `BISTRO_PASS` validos. Si falta y Bistrosoft pide login, `configurar-bistro.ps1` solicita usuario y contrasena una sola vez y guarda la contrasena cifrada con DPAPI para el usuario actual de Windows en `.bistro-credentials.json`. El script la lee localmente para completar el login automaticamente. `configurar-bistro.bat` permite cambiarla. Nunca versionar `.env`, el archivo cifrado ni las sesiones. El cifrado depende del usuario de Windows; en otra PC hay que configurarlo de nuevo.
 
 Antes de descargar, eliminar solamente archivos regulares de `descargas/` con nombre `bistrosoft_venta_YYYY-MM-DD.ext` o `bistrosoft_caja_YYYY-MM-DD.ext` cuya fecha sea exactamente ayer segun el reloj local. No borrar otros archivos, fechas anteriores ni carpetas.
+Para exportaciones Blob/data URL, guardar directamente el contenido generado en la pagina; restaurar siempre los hooks temporales. Mantener la via de descarga convencional para archivos servidos por HTTP.
 
 El formulario adjunta los dos Excel a las preguntas Venta total y Caja mediante el selector de archivos de Google. Verificar que cada nombre aparezca en su pregunta; si falla, informar el archivo pendiente y dejar el formulario abierto para carga manual. Nunca pulsar Enviar automaticamente.
 

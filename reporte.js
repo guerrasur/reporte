@@ -2,6 +2,7 @@ const { chromium } = require('playwright');
 const readline = require('readline');
 const path = require('path');
 const fs = require('fs');
+const { saveReportDownload } = require('./report-download');
 const { spawn, spawnSync } = require('child_process');
 require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true });
 
@@ -346,14 +347,9 @@ async function downloadReport(page, section, suffix) {
   const button = page.getByText(/descargar\s+detalle/i, { exact: false }).first();
   await button.waitFor({ timeout: 20000 });
 
-  const downloadPromise = page.waitForEvent('download', { timeout: 45000 });
-  await button.click();
-  const download = await downloadPromise;
-
   const { dd, mm, yyyy } = hoy();
-  const ext = path.extname(download.suggestedFilename()) || '.xlsx';
-  const destination = path.join(DOWNLOAD_DIR, `bistrosoft_${suffix}_${yyyy}-${mm}-${dd}${ext}`);
-  await download.saveAs(destination);
+  const base = path.join(DOWNLOAD_DIR, `bistrosoft_${suffix}_${yyyy}-${mm}-${dd}`);
+  const destination = await saveReportDownload(page, () => button.click(), base);
   log(`Guardado: ${destination}`);
   return destination;
 }

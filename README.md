@@ -18,7 +18,7 @@ cd C:\reporte
 npm install
 ```
 
-Cuando Bistrosoft pida iniciar sesion por primera vez, Reporte solicita usuario y contrasena una sola vez. La contrasena no se muestra al escribirla y queda cifrada en `.bistro-credentials.json` para tu usuario de Windows. En las siguientes ejecuciones completa el login automaticamente, tambien si vence la sesion del navegador. Para cambiar las credenciales, ejecuta `configurar-bistro.bat`.
+Cuando Bistrosoft pida iniciar sesion, Reporte usa primero los datos que Chrome ya haya completado y pulsa **Iniciar Sesion**. Si falta algun campo, solicita usuario y contrasena una sola vez. La contrasena no se muestra al escribirla y queda cifrada en `.bistro-credentials.json` para tu usuario de Windows. Para cambiar las credenciales locales, ejecuta `configurar-bistro.bat`.
 
 Si ya usas `.env`, Reporte sigue aceptando esas credenciales y les da prioridad:
 
@@ -48,7 +48,7 @@ Si Chrome queda activo en segundo plano despues de cerrar la ventana, `reporte.b
 
 1. Pide `Sobrantes`, `Desperdicios` y `Aclaraciones`.
 2. Abre Bistrosoft con un perfil dedicado.
-3. Si hace falta, inicia sesion en Bistrosoft con las credenciales locales.
+3. Si hace falta, pulsa Iniciar Sesion con los datos precargados por Chrome; si faltan, completa las credenciales locales.
 4. Descarga `Ranking de V. Diario` y `Caja`.
    Antes de descargar, elimina los archivos `bistrosoft_venta_...` y `bistrosoft_caja_...` cuya fecha en el nombre sea la de ayer. No borra otros archivos ni los de fechas anteriores.
 5. Cierra el navegador de Bistrosoft.

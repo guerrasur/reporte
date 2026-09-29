@@ -261,23 +261,35 @@ async function bistroLogin(page) {
     await page.locator('input[type="password"]').count() > 0;
   if (!await needsLogin()) return;
 
-  const { user, pass } = credencialesBistro();
-
   if (!page.url().includes('/login')) await page.goto(BISTRO_LOGIN, { waitUntil: 'domcontentloaded' });
   const userInput = page.locator('input[type="email"], input[name="username"], input[name="email"], input[type="text"]').first();
   const passInput = page.locator('input[type="password"]').first();
   await userInput.waitFor({ timeout: 15000 });
-  await userInput.fill(user);
-  await passInput.fill(pass);
+  await passInput.waitFor({ timeout: 15000 });
 
-  const submit = page.getByRole('button', { name: /ingresar|iniciar|entrar|login|acceder/i }).first();
+  // Chrome puede completar ambos campos desde perfil-bistro. Darle tiempo al
+  // autocompletado y usarlo antes de solicitar credenciales por PowerShell.
+  await page.waitForFunction(() => {
+    const user = document.querySelector('input[type="email"], input[name="username"], input[name="email"], input[type="text"]');
+    const pass = document.querySelector('input[type="password"]');
+    return Boolean(user?.value.trim() && pass?.value);
+  }, null, { timeout: 4000 }).catch(() => {});
+
+  if (!await userInput.inputValue() || !await passInput.inputValue()) {
+    const { user, pass } = credencialesBistro();
+    if (!await userInput.inputValue()) await userInput.fill(user);
+    if (!await passInput.inputValue()) await passInput.fill(pass);
+  }
+
+  log('Iniciando sesion en Bistrosoft...');
+  const submit = page.getByRole('button', { name: /iniciar sesi[oó]n|ingresar|iniciar|entrar|login|acceder/i }).first();
   if (await submit.count()) await submit.click();
   else await passInput.press('Enter');
 
   try {
-    await page.waitForFunction(() => !location.href.includes('/login'), { timeout: 40000 });
+    await page.waitForFunction(() => !location.href.includes('/login'), null, { timeout: 40000 });
   } catch {
-    throw new Error('Bistrosoft no acepto el inicio de sesion. Revisa BISTRO_USER/BISTRO_PASS en .env o ejecuta configurar-bistro.bat para actualizar las credenciales.');
+    throw new Error('Bistrosoft no completo el inicio de sesion. Revisa los datos guardados en Chrome o ejecuta configurar-bistro.bat para actualizar las credenciales locales.');
   }
   await sleep(3000);
   await closeModals(page);

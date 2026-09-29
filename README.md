@@ -1,6 +1,6 @@
 # Reporte diario Bistrosoft -> Google Form
 
-Automatiza la descarga de los reportes diarios de Bistrosoft, completa el Google Form y adjunta los dos Excel. El envio sigue siendo manual.
+Automatiza la descarga de los reportes diarios de Bistrosoft y deja preparado el Google Form. El envio y los archivos adjuntos siguen siendo manuales.
 
 ## Cambio importante: login de Google
 
@@ -18,16 +18,14 @@ cd C:\reporte
 npm install
 ```
 
-Cuando Bistrosoft pida iniciar sesion, Reporte usa primero los datos que Chrome ya haya completado y pulsa **Iniciar Sesion**. Si falta algun campo, solicita usuario y contrasena una sola vez. La contrasena no se muestra al escribirla y queda cifrada en `.bistro-credentials.json` para tu usuario de Windows. Para cambiar las credenciales locales, ejecuta `configurar-bistro.bat`.
-
-Si ya usas `.env`, Reporte sigue aceptando esas credenciales y les da prioridad:
+Copia `.env.example` como `.env` y completa las credenciales de Bistrosoft si queres que el inicio de sesion sea automatico:
 
 ```env
 BISTRO_USER=tu_usuario
 BISTRO_PASS=tu_contrasena
 ```
 
-El archivo `.env` es opcional. `perfil-bistro/` conserva la sesion para las siguientes ejecuciones.
+El archivo `.env` es opcional. Si falta, esta incompleto o todavia contiene los valores de ejemplo, inicia sesion manualmente en la ventana de Bistrosoft la primera vez y presiona Enter en la consola cuando veas el panel. El perfil `perfil-bistro/` conserva la sesion para las siguientes ejecuciones. Si la sesion vence, repetis el ingreso manual.
 
 `reporte.bat` ejecuta el reporte.
 
@@ -42,26 +40,22 @@ google-login.bat
 ```
 
 Inicia sesion, espera a que cargue el formulario y cierra ese Chrome. La proxima corrida reutiliza esa sesion.
-Si Chrome queda activo en segundo plano despues de cerrar la ventana, `reporte.bat` cierra solamente los procesos que usan `perfil-google/` antes de continuar con el formulario.
 
 ## Flujo diario
 
 1. Pide `Sobrantes`, `Desperdicios` y `Aclaraciones`.
 2. Abre Bistrosoft con un perfil dedicado.
-3. Si hace falta, pulsa Iniciar Sesion con los datos precargados por Chrome; si faltan, completa las credenciales locales.
+3. Si hace falta, inicia sesion en Bistrosoft con `.env` o manualmente en Chrome.
 4. Descarga `Ranking de V. Diario` y `Caja`.
-   Si Bistrosoft genera el Excel como un archivo en la pagina (Blob/data URL), guarda sus bytes directamente para evitar el gestor de descargas de Chrome. Si entrega un archivo desde el servidor, utiliza la descarga convencional. El log indica que via se uso.
-   Antes de descargar, elimina los archivos `bistrosoft_venta_...` y `bistrosoft_caja_...` cuya fecha en el nombre sea la de ayer. No borra otros archivos ni los de fechas anteriores.
-   Si Chrome de Bistrosoft se cierra durante una descarga, lo abre de nuevo y reintenta una vez, conservando cualquier archivo ya guardado.
 5. Cierra el navegador de Bistrosoft.
 6. Abre el Google Form con el perfil de Google.
 7. Si Google requiere autenticacion, cierra Playwright y abre Chrome normal para iniciar sesion; al volver, retoma automaticamente.
-8. Completa fecha, sobrantes, desperdicio y observaciones, y adjunta Venta total y Caja en sus respectivas preguntas.
-9. Deja la ventana abierta para revisar los adjuntos y enviar manualmente. Si Google cambia el selector o una carga falla, informa cual archivo hay que agregar a mano sin cerrar el formulario.
+8. Completa fecha, sobrantes, desperdicio y observaciones.
+9. Deja la ventana abierta para adjuntar los dos archivos y enviar manualmente.
 
 ## Archivos que NO se versionan
 
-`.env`, `.bistro-credentials.json`, perfiles de Chrome, cookies, caches, `node_modules`, descargas y notas diarias estan excluidos por `.gitignore`. No subas el RAR completo al repositorio: contiene datos de sesion y credenciales locales.
+`.env`, perfiles de Chrome, cookies, caches, `node_modules`, descargas y notas diarias estan excluidos por `.gitignore`. No subas el RAR completo al repositorio: contiene datos de sesion y credenciales locales.
 
 ## Si Google vuelve a cerrar la sesion
 
@@ -77,14 +71,13 @@ El mecanismo funciona asi:
 1. `reporte.bat` ejecuta `updater.js`.
 2. `updater.js` compara el archivo local `VERSION` con `VERSION` de la rama `main` de `guerrasur/reporte`.
 3. Si ambas versiones coinciden, Reporte inicia normalmente.
-4. Si la version remota es distinta, descarga el ZIP actual de `main` y reemplaza los archivos del programa. Ejecuta `npm install` si cambiaron las dependencias o falta Playwright.
+4. Si la version remota es distinta, descarga el ZIP actual de `main`, reemplaza los archivos del programa y ejecuta `npm install` si cambian las dependencias o falta Playwright.
 5. `reporte.bat` se actualiza de forma segura mediante `reporte.bat.new`: el launcher nuevo se aplica en el siguiente arranque para no reemplazar el BAT mientras esta ejecutandose.
 6. Si GitHub no responde o la actualizacion falla, Reporte conserva la instalacion actual e intenta iniciar normalmente.
 
 El actualizador no debe borrar ni reemplazar datos locales. Se preservan, entre otros:
 
 - `.env`
-- `.bistro-credentials.json`
 - `node_modules/`
 - `perfil-google/`
 - `perfil-bistro/`
@@ -106,8 +99,8 @@ Si se modifica codigo en `main` pero no se incrementa `VERSION`, las instalacion
 
 La primera copia antigua que no tenga `updater.js` requiere una actualizacion manual una sola vez. Desde una version que ya incluya el updater, las siguientes actualizaciones se realizan al abrir `reporte.bat`.
 
-## Pruebas de exportacion
+## Reversion v1.1.11
 
-`node --test tests/blob-capture.test.js` comprueba la captura binaria y la restauracion de los controles de exportacion sin navegador.
+El script `reporte.js` vuelve exactamente al de v1.1.4 (commit `107a30b`), que descargaba ambos Excel en la instalacion del usuario. Los adjuntos y el envio del formulario son manuales. Si Bistrosoft pide login y no hay credenciales en `.env`, iniciar sesion en la ventana y presionar Enter en la consola.
 
-`node --test tests/report-download.test.js` comprueba exportaciones con Chromium y una descarga HTTP local. Requiere instalar el navegador de pruebas con `npx playwright install chromium`.
+Se conserva el actualizador actual y la exclusion de archivos locales, incluido `.bistro-credentials.json`. No se borran perfiles, credenciales ni descargas. El numero 1.1.11 permite distribuir la reversion automaticamente.

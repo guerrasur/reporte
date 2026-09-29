@@ -2,8 +2,7 @@ const { chromium } = require('playwright');
 const readline = require('readline');
 const path = require('path');
 const fs = require('fs');
-const { saveReportDownload } = require('./report-download');
-const { spawn, spawnSync } = require('child_process');
+const { spawn } = require('child_process');
 require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true });
 
 const BISTRO_LOGIN = 'https://webaccess.bistrosoft.com/login';
@@ -18,8 +17,6 @@ const GOOGLE_PROFILE = path.join(ROOT, 'perfil-google');
 const GOOGLE_READY = path.join(ROOT, '.google-session-ready');
 const DOWNLOAD_DIR = path.join(ROOT, 'descargas');
 const NOTAS_DIR = path.join(ROOT, 'notas-app', 'notas');
-const BISTRO_CREDENTIALS = path.join(ROOT, '.bistro-credentials.json');
-const BISTRO_SETUP = path.join(ROOT, 'configurar-bistro.ps1');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = msg => console.log(`[${new Date().toLocaleTimeString('es-AR')}] ${msg}`);
@@ -31,45 +28,6 @@ function hoy() {
     mm: String(d.getMonth() + 1).padStart(2, '0'),
     yyyy: String(d.getFullYear()),
   };
-}
-
-function borrarReportesDeAyer() {
-  const ayer = new Date();
-  ayer.setDate(ayer.getDate() - 1);
-  const fecha = `${ayer.getFullYear()}-${String(ayer.getMonth() + 1).padStart(2, '0')}-${String(ayer.getDate()).padStart(2, '0')}`;
-  for (const entry of fs.readdirSync(DOWNLOAD_DIR, { withFileTypes: true })) {
-    if (!entry.isFile() || !new RegExp(`^bistrosoft_(venta|caja)_${fecha}\\.[^.]+$`, 'i').test(entry.name)) continue;
-    try {
-      fs.unlinkSync(path.join(DOWNLOAD_DIR, entry.name));
-      log(`Eliminado reporte de ayer: ${entry.name}`);
-    } catch (err) {
-      log(`No se pudo eliminar ${entry.name}: ${err.message}`);
-    }
-  }
-}
-
-function credencialesBistro() {
-  const user = process.env.BISTRO_USER;
-  const pass = process.env.BISTRO_PASS;
-  if (user && pass && user !== 'tu_usuario' && pass !== 'tu_contrasena') return { user, pass };
-
-  if (!fs.existsSync(BISTRO_CREDENTIALS)) {
-    log('Configura una vez tu usuario y contrasena de Bistrosoft. La contrasena no se mostrara al escribirla.');
-    const setup = spawnSync('powershell.exe', [
-      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', BISTRO_SETUP,
-      '-Mode', 'save', '-FilePath', BISTRO_CREDENTIALS,
-    ], { stdio: 'inherit', windowsHide: false });
-    if (setup.status !== 0) throw new Error('No se guardaron las credenciales de Bistrosoft. Ejecuta configurar-bistro.bat y vuelve a intentar.');
-  }
-
-  const result = spawnSync('powershell.exe', [
-    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', BISTRO_SETUP,
-    '-Mode', 'read', '-FilePath', BISTRO_CREDENTIALS,
-  ], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
-  if (result.status !== 0) throw new Error('No se pudieron leer las credenciales locales. Ejecuta configurar-bistro.bat para guardarlas de nuevo.');
-  const credentials = JSON.parse(result.stdout.trim());
-  if (!credentials.user || !credentials.pass) throw new Error('Faltan credenciales de Bistrosoft. Ejecuta configurar-bistro.bat.');
-  return credentials;
 }
 
 function notasHoyPath() {
@@ -139,43 +97,6 @@ function openNormalGoogleChrome() {
   child.unref();
 }
 
-function googleProfileChromePids() {
-  if (process.platform !== 'win32') return [];
-  const profile = GOOGLE_PROFILE.replace(/'/g, "''");
-  const script = `$profile = '${profile}'; $needle = '--user-data-dir=' + $profile; ` +
-    `Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | ` +
-    `Where-Object { $_.CommandLine -and $_.CommandLine.Replace('"', '') -match ([regex]::Escape($needle) + '(?=\\s|$)') } | ` +
-    `Select-Object -ExpandProperty ProcessId`;
-  const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', script], {
-    encoding: 'utf8', windowsHide: true, timeout: 15000,
-  });
-  if (result.status !== 0) {
-    throw new Error('No pude comprobar si Chrome libero el perfil de Google. Cerra por completo la ventana de ese perfil y volve a intentar.');
-  }
-  return result.stdout.split(/\s+/).filter(Boolean).map(Number).filter(Number.isInteger);
-}
-
-async function releaseGoogleProfile() {
-  if (process.platform !== 'win32') return;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    if (!googleProfileChromePids().length) return;
-    await sleep(1000);
-  }
-
-  const pids = googleProfileChromePids();
-  log('Chrome dejo procesos del perfil de Google en segundo plano. Cerrandolos para continuar...');
-  for (const pid of pids) {
-    spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], {
-      encoding: 'utf8', windowsHide: true, timeout: 10000,
-    });
-  }
-  for (let attempt = 0; attempt < 5; attempt++) {
-    if (!googleProfileChromePids().length) return;
-    await sleep(1000);
-  }
-  throw new Error('Chrome sigue usando el perfil de Google. Cerra esa ventana y sus procesos antes de volver a intentar.');
-}
-
 async function waitEnter(text) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   await new Promise(resolve => rl.question(text, () => { rl.close(); resolve(); }));
@@ -187,7 +108,6 @@ async function prepareGoogleLogin() {
   log('Inicia sesion, espera a que aparezca el formulario y CERRA esa ventana.');
   openNormalGoogleChrome();
   await waitEnter('Cuando hayas cerrado ese Chrome, presiona Enter para continuar... ');
-  await releaseGoogleProfile();
   fs.writeFileSync(GOOGLE_READY, new Date().toISOString(), 'utf8');
 }
 
@@ -198,7 +118,6 @@ async function googleContextWithSession() {
     await prepareGoogleLogin();
   }
 
-  await releaseGoogleProfile();
   let context = await launchAutomated(GOOGLE_PROFILE, 'Google Form');
   let page = context.pages()[0] || await context.newPage();
   await page.goto(FORM_URL, { waitUntil: 'domcontentloaded' });
@@ -262,35 +181,35 @@ async function bistroLogin(page) {
     await page.locator('input[type="password"]').count() > 0;
   if (!await needsLogin()) return;
 
+  const user = process.env.BISTRO_USER;
+  const pass = process.env.BISTRO_PASS;
+  if (!user || !pass || user === 'tu_usuario' || pass === 'tu_contrasena') {
+    log('Bistrosoft necesita iniciar sesion. Hacelo en la ventana de Chrome que se abrio.');
+    await waitEnter('Cuando veas el panel de Bistrosoft, presiona Enter para continuar... ');
+    await page.goto(BISTRO_DASH, { waitUntil: 'domcontentloaded' });
+    await sleep(2000);
+    if (await needsLogin()) {
+      throw new Error('Bistrosoft sigue mostrando el login. Inicia sesion en Chrome y vuelve a ejecutar Reporte.');
+    }
+    await closeModals(page);
+    return;
+  }
+
   if (!page.url().includes('/login')) await page.goto(BISTRO_LOGIN, { waitUntil: 'domcontentloaded' });
   const userInput = page.locator('input[type="email"], input[name="username"], input[name="email"], input[type="text"]').first();
   const passInput = page.locator('input[type="password"]').first();
   await userInput.waitFor({ timeout: 15000 });
-  await passInput.waitFor({ timeout: 15000 });
+  await userInput.fill(user);
+  await passInput.fill(pass);
 
-  // Chrome puede completar ambos campos desde perfil-bistro. Darle tiempo al
-  // autocompletado y usarlo antes de solicitar credenciales por PowerShell.
-  await page.waitForFunction(() => {
-    const user = document.querySelector('input[type="email"], input[name="username"], input[name="email"], input[type="text"]');
-    const pass = document.querySelector('input[type="password"]');
-    return Boolean(user?.value.trim() && pass?.value);
-  }, null, { timeout: 4000 }).catch(() => {});
-
-  if (!await userInput.inputValue() || !await passInput.inputValue()) {
-    const { user, pass } = credencialesBistro();
-    if (!await userInput.inputValue()) await userInput.fill(user);
-    if (!await passInput.inputValue()) await passInput.fill(pass);
-  }
-
-  log('Iniciando sesion en Bistrosoft...');
-  const submit = page.getByRole('button', { name: /iniciar sesi[oó]n|ingresar|iniciar|entrar|login|acceder/i }).first();
+  const submit = page.getByRole('button', { name: /ingresar|iniciar|entrar|login|acceder/i }).first();
   if (await submit.count()) await submit.click();
   else await passInput.press('Enter');
 
   try {
-    await page.waitForFunction(() => !location.href.includes('/login'), null, { timeout: 40000 });
+    await page.waitForFunction(() => !location.href.includes('/login'), { timeout: 40000 });
   } catch {
-    throw new Error('Bistrosoft no completo el inicio de sesion. Revisa los datos guardados en Chrome o ejecuta configurar-bistro.bat para actualizar las credenciales locales.');
+    throw new Error('Bistrosoft no acepto el inicio de sesion. Revisa BISTRO_USER/BISTRO_PASS en .env o inicia sesion manualmente quitando esas variables.');
   }
   await sleep(3000);
   await closeModals(page);
@@ -347,68 +266,20 @@ async function downloadReport(page, section, suffix) {
   const button = page.getByText(/descargar\s+detalle/i, { exact: false }).first();
   await button.waitFor({ timeout: 20000 });
 
+  const downloadPromise = page.waitForEvent('download', { timeout: 45000 });
+  await button.click();
+  const download = await downloadPromise;
+
   const { dd, mm, yyyy } = hoy();
-  const base = path.join(DOWNLOAD_DIR, `bistrosoft_${suffix}_${yyyy}-${mm}-${dd}`);
-  const destination = await saveReportDownload(page, () => button.click(), base);
+  const ext = path.extname(download.suggestedFilename()) || '.xlsx';
+  const destination = path.join(DOWNLOAD_DIR, `bistrosoft_${suffix}_${yyyy}-${mm}-${dd}${ext}`);
+  await download.saveAs(destination);
   log(`Guardado: ${destination}`);
   return destination;
 }
 
 function questionBlock(page, text) {
   return page.locator('div[role="listitem"]').filter({ hasText: text }).first();
-}
-
-async function attachFormFile(page, question, filePath) {
-  if (!fs.existsSync(filePath)) throw new Error(`No existe ${filePath}`);
-  const block = questionBlock(page, question);
-  const name = path.basename(filePath);
-  await block.getByRole('button', { name: /agregar archivo/i }).click();
-
-  // Google abre un selector en un iframe. Su input puede aparecer de inmediato
-  // o despues de pulsar "Seleccionar archivos del dispositivo".
-  let fileInput;
-  for (let attempt = 0; attempt < 20 && !fileInput; attempt++) {
-    for (const frame of page.frames().reverse()) {
-      const candidate = frame.locator('input[type="file"]').first();
-      if (await candidate.count().catch(() => 0)) {
-        fileInput = candidate;
-        break;
-      }
-    }
-    if (!fileInput) await sleep(500);
-  }
-
-  if (fileInput) {
-    await fileInput.setInputFiles(filePath);
-  } else {
-    let selected = false;
-    for (const frame of page.frames().reverse()) {
-      const choose = frame.getByRole('button', { name: /seleccionar archivos|elegir archivos|browse|choose files/i }).first();
-      if (!await choose.count().catch(() => 0)) continue;
-      const chooserPromise = page.waitForEvent('filechooser', { timeout: 15000 });
-      await choose.click();
-      await (await chooserPromise).setFiles(filePath);
-      selected = true;
-      break;
-    }
-    if (!selected) throw new Error('No encontre el selector de archivos de Google.');
-  }
-
-  const attached = block.getByText(name, { exact: false });
-  try {
-    await attached.waitFor({ timeout: 20000 });
-  } catch {
-    // Algunas versiones del selector requieren confirmar el archivo elegido.
-    for (const frame of page.frames().reverse()) {
-      const confirm = frame.getByRole('button', { name: /^(subir|upload|seleccionar|insertar)$/i }).first();
-      if (await confirm.isVisible().catch(() => false)) {
-        await confirm.click();
-        break;
-      }
-    }
-    await attached.waitFor({ timeout: 70000 });
-  }
-  log(`Adjuntado al formulario: ${name}`);
 }
 
 async function fillForm(page, data, ventaPath, cajaPath) {
@@ -443,20 +314,8 @@ async function fillForm(page, data, ventaPath, cajaPath) {
   await fill('Desperdicio', data.desperdicios);
   await fill('Observaciones', data.aclaraciones);
 
-  for (const [question, file] of [
-    ['Venta total - Subir archivo bistrosoft', ventaPath],
-    ['Caja - Subir archivo bistrosoft', cajaPath],
-  ]) {
-    try {
-      await attachFormFile(page, question, file);
-    } catch (err) {
-      log(`No se pudo adjuntar ${path.basename(file)} automaticamente: ${err.message}`);
-      log(`Agregalo manualmente en "${question}" antes de enviar.`);
-    }
-  }
-
   console.log('');
-  log('Formulario preparado. Revisa los adjuntos y envia manualmente.');
+  log('Formulario preparado. Los adjuntos y el envio siguen siendo manuales.');
   log(`Venta total: ${ventaPath}`);
   log(`Caja: ${cajaPath}`);
 }
@@ -477,37 +336,15 @@ async function fillForm(page, data, ventaPath, cajaPath) {
   rl.close();
 
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
-  borrarReportesDeAyer();
   let bistro = null;
   let google = null;
 
   try {
-    let ventaPath;
-    let cajaPath;
-    let closingBistro = false;
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        bistro = await launchAutomated(BISTRO_PROFILE, 'Bistrosoft');
-        closingBistro = false;
-        bistro.on('close', () => {
-          if (!closingBistro) log('Chrome de Bistrosoft se cerro inesperadamente.');
-        });
-        const bistroPage = bistro.pages()[0] || await bistro.newPage();
-        bistroPage.on('crash', () => log('La pestana de Bistrosoft fallo (crash).'));
-        await bistroLogin(bistroPage);
-        if (!ventaPath) ventaPath = await downloadReport(bistroPage, 'Ranking de V. Diario', 'venta');
-        if (!cajaPath) cajaPath = await downloadReport(bistroPage, 'Caja', 'caja');
-        break;
-      } catch (err) {
-        const closed = /target page, context or browser has been closed|browser has been closed|page has been closed/i.test(err.message);
-        if (!closed || attempt === 2) throw err;
-        log('Chrome de Bistrosoft se cerro durante la descarga. Reabriendo y reintentando una vez...');
-        closingBistro = true;
-        if (bistro) await bistro.close().catch(() => {});
-        bistro = null;
-      }
-    }
-    closingBistro = true;
+    bistro = await launchAutomated(BISTRO_PROFILE, 'Bistrosoft');
+    const bistroPage = bistro.pages()[0] || await bistro.newPage();
+    await bistroLogin(bistroPage);
+    const ventaPath = await downloadReport(bistroPage, 'Ranking de V. Diario', 'venta');
+    const cajaPath = await downloadReport(bistroPage, 'Caja', 'caja');
     await bistro.close();
     bistro = null;
 
@@ -516,7 +353,7 @@ async function fillForm(page, data, ventaPath, cajaPath) {
     await fillForm(g.page, { sobrantes, desperdicios, aclaraciones }, ventaPath, cajaPath);
     archivarNotasHoy();
 
-    log('LISTO. Revisa el formulario y envialo manualmente.');
+    log('LISTO. Adjunta los dos archivos y envia el formulario.');
     await new Promise(() => {});
   } catch (err) {
     console.error('\nERROR:', err.message);

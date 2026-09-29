@@ -17,6 +17,8 @@ const GOOGLE_PROFILE = path.join(ROOT, 'perfil-google');
 const GOOGLE_READY = path.join(ROOT, '.google-session-ready');
 const DOWNLOAD_DIR = path.join(ROOT, 'descargas');
 const NOTAS_DIR = path.join(ROOT, 'notas-app', 'notas');
+const BISTRO_CREDENTIALS = path.join(ROOT, '.bistro-credentials.json');
+const BISTRO_SETUP = path.join(ROOT, 'configurar-bistro.ps1');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = msg => console.log(`[${new Date().toLocaleTimeString('es-AR')}] ${msg}`);
@@ -28,6 +30,45 @@ function hoy() {
     mm: String(d.getMonth() + 1).padStart(2, '0'),
     yyyy: String(d.getFullYear()),
   };
+}
+
+function borrarReportesDeAyer() {
+  const ayer = new Date();
+  ayer.setDate(ayer.getDate() - 1);
+  const fecha = `${ayer.getFullYear()}-${String(ayer.getMonth() + 1).padStart(2, '0')}-${String(ayer.getDate()).padStart(2, '0')}`;
+  for (const entry of fs.readdirSync(DOWNLOAD_DIR, { withFileTypes: true })) {
+    if (!entry.isFile() || !new RegExp(`^bistrosoft_(venta|caja)_${fecha}\\.[^.]+$`, 'i').test(entry.name)) continue;
+    try {
+      fs.unlinkSync(path.join(DOWNLOAD_DIR, entry.name));
+      log(`Eliminado reporte de ayer: ${entry.name}`);
+    } catch (err) {
+      log(`No se pudo eliminar ${entry.name}: ${err.message}`);
+    }
+  }
+}
+
+function credencialesBistro() {
+  const user = process.env.BISTRO_USER;
+  const pass = process.env.BISTRO_PASS;
+  if (user && pass && user !== 'tu_usuario' && pass !== 'tu_contrasena') return { user, pass };
+
+  if (!fs.existsSync(BISTRO_CREDENTIALS)) {
+    log('Configura una vez tu usuario y contrasena de Bistrosoft. La contrasena no se mostrara al escribirla.');
+    const setup = spawnSync('powershell.exe', [
+      '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', BISTRO_SETUP,
+      '-Mode', 'save', '-FilePath', BISTRO_CREDENTIALS,
+    ], { stdio: 'inherit', windowsHide: false });
+    if (setup.status !== 0) throw new Error('No se guardaron las credenciales de Bistrosoft. Ejecuta configurar-bistro.bat y vuelve a intentar.');
+  }
+
+  const result = spawnSync('powershell.exe', [
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', BISTRO_SETUP,
+    '-Mode', 'read', '-FilePath', BISTRO_CREDENTIALS,
+  ], { encoding: 'utf8', windowsHide: true, timeout: 15000 });
+  if (result.status !== 0) throw new Error('No se pudieron leer las credenciales locales. Ejecuta configurar-bistro.bat para guardarlas de nuevo.');
+  const credentials = JSON.parse(result.stdout.trim());
+  if (!credentials.user || !credentials.pass) throw new Error('Faltan credenciales de Bistrosoft. Ejecuta configurar-bistro.bat.');
+  return credentials;
 }
 
 function notasHoyPath() {
@@ -220,19 +261,7 @@ async function bistroLogin(page) {
     await page.locator('input[type="password"]').count() > 0;
   if (!await needsLogin()) return;
 
-  const user = process.env.BISTRO_USER;
-  const pass = process.env.BISTRO_PASS;
-  if (!user || !pass || user === 'tu_usuario' || pass === 'tu_contrasena') {
-    log('Bistrosoft necesita iniciar sesion. Hacelo en la ventana de Chrome que se abrio.');
-    await waitEnter('Cuando veas el panel de Bistrosoft, presiona Enter para continuar... ');
-    await page.goto(BISTRO_DASH, { waitUntil: 'domcontentloaded' });
-    await sleep(2000);
-    if (await needsLogin()) {
-      throw new Error('Bistrosoft sigue mostrando el login. Inicia sesion en Chrome y vuelve a ejecutar Reporte.');
-    }
-    await closeModals(page);
-    return;
-  }
+  const { user, pass } = credencialesBistro();
 
   if (!page.url().includes('/login')) await page.goto(BISTRO_LOGIN, { waitUntil: 'domcontentloaded' });
   const userInput = page.locator('input[type="email"], input[name="username"], input[name="email"], input[type="text"]').first();
@@ -248,7 +277,7 @@ async function bistroLogin(page) {
   try {
     await page.waitForFunction(() => !location.href.includes('/login'), { timeout: 40000 });
   } catch {
-    throw new Error('Bistrosoft no acepto el inicio de sesion. Revisa BISTRO_USER/BISTRO_PASS en .env o inicia sesion manualmente quitando esas variables.');
+    throw new Error('Bistrosoft no acepto el inicio de sesion. Revisa BISTRO_USER/BISTRO_PASS en .env o ejecuta configurar-bistro.bat para actualizar las credenciales.');
   }
   await sleep(3000);
   await closeModals(page);
@@ -375,6 +404,7 @@ async function fillForm(page, data, ventaPath, cajaPath) {
   rl.close();
 
   fs.mkdirSync(DOWNLOAD_DIR, { recursive: true });
+  borrarReportesDeAyer();
   let bistro = null;
   let google = null;
 

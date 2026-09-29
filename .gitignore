@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+.bistro-credentials.json
 
 # Dependencias
 node_modules/

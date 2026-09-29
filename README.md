@@ -18,14 +18,16 @@ cd C:\reporte
 npm install
 ```
 
-Copia `.env.example` como `.env` y completa las credenciales de Bistrosoft si queres que el inicio de sesion sea automatico:
+Cuando Bistrosoft pida iniciar sesion por primera vez, Reporte solicita usuario y contrasena una sola vez. La contrasena no se muestra al escribirla y queda cifrada en `.bistro-credentials.json` para tu usuario de Windows. En las siguientes ejecuciones completa el login automaticamente, tambien si vence la sesion del navegador. Para cambiar las credenciales, ejecuta `configurar-bistro.bat`.
+
+Si ya usas `.env`, Reporte sigue aceptando esas credenciales y les da prioridad:
 
 ```env
 BISTRO_USER=tu_usuario
 BISTRO_PASS=tu_contrasena
 ```
 
-El archivo `.env` es opcional. Si falta, esta incompleto o todavia contiene los valores de ejemplo, inicia sesion manualmente en la ventana de Bistrosoft la primera vez y presiona Enter en la consola cuando veas el panel. El perfil `perfil-bistro/` conserva la sesion para las siguientes ejecuciones. Si la sesion vence, repetis el ingreso manual.
+El archivo `.env` es opcional. `perfil-bistro/` conserva la sesion para las siguientes ejecuciones.
 
 `reporte.bat` ejecuta el reporte.
 
@@ -46,8 +48,9 @@ Si Chrome queda activo en segundo plano despues de cerrar la ventana, `reporte.b
 
 1. Pide `Sobrantes`, `Desperdicios` y `Aclaraciones`.
 2. Abre Bistrosoft con un perfil dedicado.
-3. Si hace falta, inicia sesion en Bistrosoft con `.env` o manualmente en Chrome.
+3. Si hace falta, inicia sesion en Bistrosoft con las credenciales locales.
 4. Descarga `Ranking de V. Diario` y `Caja`.
+   Antes de descargar, elimina los archivos `bistrosoft_venta_...` y `bistrosoft_caja_...` cuya fecha en el nombre sea la de ayer. No borra otros archivos ni los de fechas anteriores.
 5. Cierra el navegador de Bistrosoft.
 6. Abre el Google Form con el perfil de Google.
 7. Si Google requiere autenticacion, cierra Playwright y abre Chrome normal para iniciar sesion; al volver, retoma automaticamente.
@@ -56,7 +59,7 @@ Si Chrome queda activo en segundo plano despues de cerrar la ventana, `reporte.b
 
 ## Archivos que NO se versionan
 
-`.env`, perfiles de Chrome, cookies, caches, `node_modules`, descargas y notas diarias estan excluidos por `.gitignore`. No subas el RAR completo al repositorio: contiene datos de sesion y credenciales locales.
+`.env`, `.bistro-credentials.json`, perfiles de Chrome, cookies, caches, `node_modules`, descargas y notas diarias estan excluidos por `.gitignore`. No subas el RAR completo al repositorio: contiene datos de sesion y credenciales locales.
 
 ## Si Google vuelve a cerrar la sesion
 
@@ -79,6 +82,7 @@ El mecanismo funciona asi:
 El actualizador no debe borrar ni reemplazar datos locales. Se preservan, entre otros:
 
 - `.env`
+- `.bistro-credentials.json`
 - `node_modules/`
 - `perfil-google/`
 - `perfil-bistro/`

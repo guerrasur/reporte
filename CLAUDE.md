@@ -49,6 +49,7 @@ Al iniciar:
 Nunca borrar, versionar ni reemplazar datos sensibles o generados localmente:
 
 - `.env`
+- `.bistro-credentials.json`
 - `node_modules/`
 - `perfil-google/`
 - `perfil-bistro/`
@@ -81,7 +82,9 @@ El primer arranque tambien instala dependencias automaticamente si falta Playwri
 
 ## Credenciales de Bistrosoft
 
-`.env` es opcional. Si faltan `BISTRO_USER` o `BISTRO_PASS`, o siguen con los valores de `.env.example`, el script espera a que la persona inicie sesion manualmente en el Chrome de Bistrosoft y confirme con Enter. `perfil-bistro/` conserva esa sesion. Con credenciales configuradas, el login automatico sigue disponible. Nunca versionar `.env` ni las sesiones.
+`.env` es opcional y tiene prioridad si contiene `BISTRO_USER` y `BISTRO_PASS` validos. Si falta y Bistrosoft pide login, `configurar-bistro.ps1` solicita usuario y contrasena una sola vez y guarda la contrasena cifrada con DPAPI para el usuario actual de Windows en `.bistro-credentials.json`. El script la lee localmente para completar el login automaticamente. `configurar-bistro.bat` permite cambiarla. Nunca versionar `.env`, el archivo cifrado ni las sesiones. El cifrado depende del usuario de Windows; en otra PC hay que configurarlo de nuevo.
+
+Antes de descargar, eliminar solamente archivos regulares de `descargas/` con nombre `bistrosoft_venta_YYYY-MM-DD.ext` o `bistrosoft_caja_YYYY-MM-DD.ext` cuya fecha sea exactamente ayer segun el reloj local. No borrar otros archivos, fechas anteriores ni carpetas.
 
 ## Publicacion de cambios
 

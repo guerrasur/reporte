@@ -11,6 +11,9 @@ const VERSION_FILE = path.join(BASE, 'VERSION');
 
 const SKIP_TOP_LEVEL = new Set([
   '.git',
+  '.env',
+  '.bistro-credentials.json',
+  '.google-session-ready',
   'node_modules',
   'perfil-google',
   'perfil-bistro',

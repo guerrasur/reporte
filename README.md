@@ -47,6 +47,7 @@ Inicia sesion, espera a que cargue el formulario y cierra ese Chrome. La proxima
 2. Abre Bistrosoft con un perfil dedicado.
 3. Si hace falta, inicia sesion en Bistrosoft con `.env` o manualmente en Chrome.
 4. Descarga `Ranking de V. Diario` y `Caja`.
+   Si Chrome se cierra o falla la descarga, abre Bistrosoft en Chrome normal para descargar los reportes faltantes de hoy. Guarda los Excel, cierra esa ventana y presiona Enter: continua con el formulario y conserva los datos ya ingresados. Si Ranking ya se guardo, no necesitas descargarlo otra vez.
 5. Cierra el navegador de Bistrosoft.
 6. Abre el Google Form con el perfil de Google.
 7. Si Google requiere autenticacion, cierra Playwright y abre Chrome normal para iniciar sesion; al volver, retoma automaticamente.
@@ -104,3 +105,9 @@ La primera copia antigua que no tenga `updater.js` requiere una actualizacion ma
 El script `reporte.js` vuelve exactamente al de v1.1.4 (commit `107a30b`), que descargaba ambos Excel en la instalacion del usuario. Los adjuntos y el envio del formulario son manuales. Si Bistrosoft pide login y no hay credenciales en `.env`, iniciar sesion en la ventana y presionar Enter en la consola.
 
 Se conserva el actualizador actual y la exclusion de archivos locales, incluido `.bistro-credentials.json`. No se borran perfiles, credenciales ni descargas. El numero 1.1.11 permite distribuir la reversion automaticamente.
+
+## v1.1.12: continuar si falla una descarga
+
+Se mantiene la descarga nativa de la version restaurada. Si falla, el programa ofrece continuar mediante descarga manual en Chrome normal y luego prepara el formulario. No usa captura de Blob ni reintentos automaticos. Los datos ingresados se conservan mientras el programa espera. No envia el formulario ni adjunta archivos automaticamente. Esta salida evita que un cierre durante `download.saveAs` aborte todo el cierre diario; no determina la causa del cierre de Chrome en la PC.
+
+Verificacion de regresiones: `node --test tests/report-download.test.js`.

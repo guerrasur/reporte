@@ -93,4 +93,8 @@ Antes de considerar terminada una modificacion:
 
 ## Reversion solicitada: v1.1.11
 
-`reporte.js` es identico a v1.1.4 (`107a30b`). Mantener los adjuntos manuales. No reintroducir los cambios experimentales de descarga ni los adjuntos automaticos sin una nueva solicitud. Se conserva `updater.js` actual: instala dependencias solo cuando cambian o falta Playwright; Windows ejecuta npm con shell. Mantener `.bistro-credentials.json` excluido del actualizador y de git aunque este flujo no lo utilice.
+v1.1.11 restauro el flujo de v1.1.4 (`107a30b`). Mantener los adjuntos manuales. No reintroducir captura de Blob ni reintentos automaticos tras cierres de Chrome. Se conserva `updater.js` actual: instala dependencias solo cuando cambian o falta Playwright; Windows ejecuta npm con shell. Mantener `.bistro-credentials.json` excluido del actualizador y de git aunque este flujo no lo utilice.
+
+## Descargas v1.1.12
+
+`report-download.js` mantiene la descarga nativa y verifica que el archivo guardado no este vacio. Ante un fallo en los reportes, cierra el contexto de Bistrosoft, abre Chrome normal con `perfil-bistro` y pide descargar manualmente los Excel faltantes. Tras Enter continua con el Google Form usando los datos ingresados en esa misma ejecucion. No reintenta ni anuncia como guardados archivos cuya descarga fallo. Adjuntos y envio siguen siendo manuales. El mensaje de cierre no identifica por si solo la causa del cierre de Chrome.

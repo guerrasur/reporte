@@ -3,6 +3,7 @@ const readline = require('readline');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const { saveReportDownload, collectReports } = require('./report-download');
 require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true });
 
 const BISTRO_LOGIN = 'https://webaccess.bistrosoft.com/login';
@@ -84,15 +85,15 @@ function chromeExe() {
   return candidates.find(p => fs.existsSync(p));
 }
 
-function openNormalGoogleChrome() {
+function openNormalChrome(profileDir, url) {
   const exe = chromeExe();
   if (!exe) throw new Error('No encontre Google Chrome instalado.');
-  fs.mkdirSync(GOOGLE_PROFILE, { recursive: true });
+  fs.mkdirSync(profileDir, { recursive: true });
   const child = spawn(exe, [
-    `--user-data-dir=${GOOGLE_PROFILE}`,
+    `--user-data-dir=${profileDir}`,
     '--no-first-run',
     '--no-default-browser-check',
-    FORM_URL,
+    url,
   ], { detached: true, stdio: 'ignore' });
   child.unref();
 }
@@ -106,7 +107,7 @@ async function prepareGoogleLogin() {
   console.log('');
   log('Abriendo Chrome NORMAL para preparar la sesion de Google.');
   log('Inicia sesion, espera a que aparezca el formulario y CERRA esa ventana.');
-  openNormalGoogleChrome();
+  openNormalChrome(GOOGLE_PROFILE, FORM_URL);
   await waitEnter('Cuando hayas cerrado ese Chrome, presiona Enter para continuar... ');
   fs.writeFileSync(GOOGLE_READY, new Date().toISOString(), 'utf8');
 }
@@ -266,14 +267,9 @@ async function downloadReport(page, section, suffix) {
   const button = page.getByText(/descargar\s+detalle/i, { exact: false }).first();
   await button.waitFor({ timeout: 20000 });
 
-  const downloadPromise = page.waitForEvent('download', { timeout: 45000 });
-  await button.click();
-  const download = await downloadPromise;
-
   const { dd, mm, yyyy } = hoy();
-  const ext = path.extname(download.suggestedFilename()) || '.xlsx';
-  const destination = path.join(DOWNLOAD_DIR, `bistrosoft_${suffix}_${yyyy}-${mm}-${dd}${ext}`);
-  await download.saveAs(destination);
+  const base = path.join(DOWNLOAD_DIR, `bistrosoft_${suffix}_${yyyy}-${mm}-${dd}`);
+  const destination = await saveReportDownload(page, () => button.click(), base);
   log(`Guardado: ${destination}`);
   return destination;
 }
@@ -316,8 +312,8 @@ async function fillForm(page, data, ventaPath, cajaPath) {
 
   console.log('');
   log('Formulario preparado. Los adjuntos y el envio siguen siendo manuales.');
-  log(`Venta total: ${ventaPath}`);
-  log(`Caja: ${cajaPath}`);
+  log(`Venta total: ${ventaPath || 'adjuntar el Excel que descargaste manualmente'}`);
+  log(`Caja: ${cajaPath || 'adjuntar el Excel que descargaste manualmente'}`);
 }
 
 (async () => {
@@ -343,10 +339,23 @@ async function fillForm(page, data, ventaPath, cajaPath) {
     bistro = await launchAutomated(BISTRO_PROFILE, 'Bistrosoft');
     const bistroPage = bistro.pages()[0] || await bistro.newPage();
     await bistroLogin(bistroPage);
-    const ventaPath = await downloadReport(bistroPage, 'Ranking de V. Diario', 'venta');
-    const cajaPath = await downloadReport(bistroPage, 'Caja', 'caja');
-    await bistro.close();
-    bistro = null;
+    const { ventaPath, cajaPath } = await collectReports({
+      download: (section, suffix) => downloadReport(bistroPage, section, suffix),
+      close: async () => {
+        await bistro.close().catch(() => {});
+        bistro = null;
+      },
+      openManual: async paths => {
+        log('Abriendo Chrome NORMAL para descargar los reportes que faltan.');
+        if (paths.ventaPath) log(`Ranking de V. Diario ya guardado: ${paths.ventaPath}`);
+        else log('Descarga Ranking de V. Diario de HOY para LIMA ENSALADAS - SUIPACHA.');
+        log('Descarga Caja de HOY para LIMA ENSALADAS - SUIPACHA.');
+        log(`Guarda los Excel en ${DOWNLOAD_DIR} o en tu carpeta habitual de descargas.`);
+        openNormalChrome(BISTRO_PROFILE, BISTRO_REPORT);
+      },
+      wait: () => waitEnter('Cuando tengas los Excel, cerra ese Chrome y presiona Enter para continuar con el formulario... '),
+      log,
+    });
 
     const g = await googleContextWithSession();
     google = g.context;
